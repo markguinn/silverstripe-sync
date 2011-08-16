@@ -1,0 +1,12 @@
+Page:
+	test1:
+		Title: abc
+	test2:
+		Title: def
+	test3:
+		Title: ghi
+		URLSegment: jkl
+		
+ErrorPage:
+	err1:
+		Title: What did you do

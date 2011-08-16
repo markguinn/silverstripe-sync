@@ -1,0 +1,32 @@
+SapphireSync Module
+v0.1
+
+This module is in a very very early stage. It's just been refactored
+from a project under active development and so lacks some functionality
+that would be generally useful but isn't required for our one project.
+Hopefully it can grow from here.
+
+
+Server usage:
+
+Nothing is required unless you want to tweak the settings in SyncController
+or add additional syncing contexts with different sets of models/rules.
+
+
+Client usage:
+
+Make sure sync/javascript/sencha.js is included. This should work for
+both Sencha Touch 1.x and ExtJS 4.
+
+// REQUIRED: before you sync you must tell it which models to sync
+SapphireSync.models = ['Store','Product','User'];
+
+// OPTIONAL: no authentication is done by default, but if you
+// add that to your SyncContext setup on the server side, this
+// would be where you specify additional parameters to get included
+// with each POST request.
+SapphireSync.auth = {
+	user: 'john',
+	password: 'abcdef'
+};
+

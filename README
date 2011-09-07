@@ -9,8 +9,13 @@ Hopefully it can grow from here.
 
 Server usage:
 
-Nothing is required unless you want to tweak the settings in SyncController
-or add additional syncing contexts with different sets of models/rules.
+There are a few statics you can set to configure things like the sync
+API url and set up additional syncing "contexts" with different rules.
+
+The only required setup is that you define a static on the models you
+want to sync with some configuration.
+
+
 
 
 Client usage:
@@ -30,3 +35,12 @@ SapphireSync.auth = {
 	password: 'abcdef'
 };
 
+Then to initiate the sync:
+
+SapphireSync.allModels();
+
+Or:
+
+SapphireSync.allModels(false, function(){
+	// this will be called when sync is complete
+});

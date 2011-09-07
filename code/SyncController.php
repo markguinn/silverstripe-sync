@@ -17,18 +17,21 @@
  *
  * @author Mark Guinn <mark@adaircreative.com>
  * @date 8.15.11
- * @package sync
+ * @package SapphireSync
  */
 class SyncController extends Controller {
 	static $url_segment = 'sync';
-	
+	static $allow_jsonp = true;
 	
 	/**
 	 * Handles all contexts
 	 * !TODO - handle more than one model in one request
+	 *
+	 * @param SS_HTTPRequest $req
+	 * @return SS_HTTPResponse
 	 */
 	public function index($req) {
-		$model	= $req->postVar('model');
+		$model	= $req->requestVar('model');
 		if (!$model) return $this->fail(400);
 		
 		// find the configuration
@@ -41,12 +44,12 @@ class SyncController extends Controller {
 			|| !is_array($cfg) 
 			|| !isset($cfg['type']) 
 			|| $cfg['type'] == SYNC_NONE
-			) return $this->fail(403);
+			) return $this->fail(403, 'Access denied');
 			
 		$fields = isset($cfg['fields']) 
 			? explode(',', $cfg['fields']) 
 			: array_keys(singleton($model)->db());
-		if (count($fields) == 0) return $this->fail(403);
+		if (count($fields) == 0) return $this->fail(403, 'Access denied');
 		
 		// do we need to swap out for a parent table or anything?
 		if (isset($cfg['model'])) $model = $cfg['model'];
@@ -56,16 +59,17 @@ class SyncController extends Controller {
 		if (!isset($cfg['join'])) $cfg['join'] = '';
 		
 		// check authentication
-		if (!$context->checkAuth($req->postVars())) return $this->fail(403);
+		if (!$context->checkAuth($req->requestVars())) return $this->fail(403, 'Incorrect or invalid authentication');
 		
 		// fill in any blanks in the filters based on the request input
-		$replacements = $context->getFilterVariables($req->postVars());
+		$replacements = $context->getFilterVariables($req->requestVars());
 		$cfg['filter'] = str_replace(array_keys($replacements), array_values($replacements), $cfg['filter']);
-
+		//Debug::log("replacing:".print_r($replacements,true).print_r($cfg,true));
+		
 		// input arrays
-		$insert	= $req->postVar('insert')	? json_decode($req->postVar('insert'), true)	: array();
-		$check	= $req->postVar('check')	? json_decode($req->postVar('check'), true)		: array();
-		$update	= $req->postVar('update')	? json_decode($req->postVar('update'), true)	: array();		
+		$insert	= $req->requestVar('insert')	? json_decode($req->requestVar('insert'), true)	: array();
+		$check	= $req->requestVar('check')		? json_decode($req->requestVar('check'), true)	: array();
+		$update	= $req->requestVar('update')	? json_decode($req->requestVar('update'), true)	: array();		
 		
 		// output arrays
 		$clientSend = array();
@@ -134,6 +138,7 @@ class SyncController extends Controller {
 			}
 			
 			// insert any new records
+			// !todo: make sure only the allowed fields can be changed				
 			if ($cfg['type'] == SYNC_FULL || $cfg['type'] == SYNC_UP) {
 				foreach ($insert as $rec) {
 					unset($rec['ID']);
@@ -148,6 +153,7 @@ class SyncController extends Controller {
 		} else {
 			if ($cfg['type'] == SYNC_FULL || $cfg['type'] == SYNC_UP) {
 				// update records
+				// !todo: make sure only the allowed fields can be changed				
 				foreach ($update as $rec) {
 					$obj = DataObject::get_by_id($model, $rec['ID']);
 					unset($rec['ID']);
@@ -177,13 +183,13 @@ class SyncController extends Controller {
 	 * @return SS_HTTPResponse
 	 */
 	protected function fail($code=400, $message='') {
-		return new SS_HTTPResponse($message, $code);
-/*
+// 		NOTE: we can't really use HTTP status codes with JSONP, as cool as that was
+//		return new SS_HTTPResponse($message, $code);
 		return $this->respond(array(
-			'ok' 	=> 0,
-			'err' 	=> $message
-		), $code);
-*/
+			'ok' 			=> 0,
+			'statusMessage' => $message,
+			'statusCode'	=> $code
+		));
 	}
 	
 
@@ -196,8 +202,19 @@ class SyncController extends Controller {
 	 * @return string
 	 */
 	protected function respond(array $data,$code=200) {
-		$response = new SS_HTTPResponse(json_encode($data), $code);
-		$response->addHeader('Content-type', 'application/json');
+		// default is a simple json response
+		$content = json_encode($data);
+		$type = 'application/json';
+		
+		// modify for jsonp if needed
+		if (self::$allow_jsonp && $this->getRequest()->getVar('SSCB')) {
+			$type = 'text/javascript';
+			$content = $this->getRequest()->getVar('SSCB') . '(' . $content . ');';
+		}
+		
+		// send it
+		$response = new SS_HTTPResponse($content, $code);
+		$response->addHeader('Content-type', $type);
 		return $response;
 	}
 

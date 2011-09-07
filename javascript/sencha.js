@@ -29,6 +29,8 @@ var SapphireSync = {
 	
 	apiUrl:			'/sync',
 	
+	useJSONP:		false,		// !todo: 'twould be cool to autodetect this based on host name and allow this to be an override
+
 	/**
 	 * a list of model name strings
 	 */
@@ -171,15 +173,9 @@ This would be cool to build in, but for now we'll leave it up to the app.
 			dataOut.insert = Ext.encode(dataOut.insert);
 			dataOut.check = Ext.encode(dataOut.check);
 			
-			Ext.Ajax.request({
-				url:	SapphireSync.apiUrl,
+			SapphireSync._request({
 				params: dataOut,
-		
-				success:function(response,opts){
-					var data = response.responseText && response.responseText.substr(0,1)=='{'
-						? Ext.decode(response.responseText) 
-						: {ok:0, statusMessage:'Server error. Please try again shortly.'};
-		
+				callback:function(data){
 					if (data.ok) {
 						// 3. send back any requested records
 						if (data.send.length > 0) {
@@ -198,11 +194,9 @@ This would be cool to build in, but for now we'll leave it up to the app.
 							// request since it doesn't actually affect the client at
 							// all. If it were to fail, the same records would be
 							// requested by the server next time so it wouldn't matter
-							Ext.Ajax.request({
-								url:	SapphireSync.apiUrl,
+							SapphireSync._request({
 								params: Ext.apply({
 									model:	modelName,
-									fields: dataOut.fields,
 									update: Ext.encode(newUpdate)
 								}, SapphireSync.auth)
 							});
@@ -252,11 +246,6 @@ This would be cool to build in, but for now we'll leave it up to the app.
 					}
 
 					onComplete();
-				},
-		
-				failure:function(response){
-					alert('Sync error on '+modelName+': '+(response.responseText ? response.responseText : 'Communications Error'));
-					onComplete();
 				}
 			});
 		});
@@ -267,6 +256,7 @@ This would be cool to build in, but for now we'll leave it up to the app.
 	 * Looks up a model by the remote ID rather than the local ID
 	 * This could be a non-trivial process as you have to actually
 	 * loop through every record.
+	 *
 	 * @param string modelName
 	 * @param int id
 	 * @param function onSuccess [optional]
@@ -297,6 +287,50 @@ This would be cool to build in, but for now we'll leave it up to the app.
 		
 			onFailure('Not found');
 		});
+	},
+	
+	
+	/**
+	 * simple wrapper to pick b/t json and jsonp
+	 */
+	_request:function(options){
+		// set the url
+		if (!options.url) options.url = this.apiUrl;
+		
+		// wrap the callback function
+		var finished = false;
+		var realCallback = typeof options.callback == 'function' ? options.callback : function(){};
+		options.callback = function(obj, success, response) {
+			// failsafe for jsonp requests
+			if (finished) return;
+			finished = true;
+			
+			if (SapphireSync.useJSONP) {
+				// jsonp requests give us the actual object
+				realCallback(obj);
+			} else {
+				// json requests give us text that we have to decode
+				var data = response.responseText && response.responseText.substr(0,1)=='{'
+					? Ext.decode(response.responseText) 
+					: {ok:0, statusMessage:'Server error. Please try again shortly.'};
+				realCallback(data);
+			}
+		};
+
+		// handle jsonp differently
+		if (this.useJSONP) {
+			setTimeout(function(){
+				if (finished) return;
+				finished = true;
+				options.callback({ok:0, statusMessage:'Request timed out'});
+			}, Ext.Ajax.timeout);
+			
+			options.callbackKey = 'SSCB';
+			Ext.util.JSONP.request(options);
+		} else {
+			Ext.Ajax.request(options);
+		}
 	}
+	
 	
 };

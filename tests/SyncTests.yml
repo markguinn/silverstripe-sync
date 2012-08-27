@@ -1,12 +1,13 @@
 Page:
 	test1:
 		Title: abc
+		#LastEdited: 2010-01-01
 	test2:
 		Title: def
 	test3:
 		Title: ghi
 		URLSegment: jkl
-		
+
 ErrorPage:
 	err1:
 		Title: What did you do

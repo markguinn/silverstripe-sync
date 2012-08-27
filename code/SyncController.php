@@ -15,6 +15,8 @@
  *	- deleting on the client (I can't think of a case this is needed on the kiosk)
  *	- merging changes if a record were modified in both places (again, I don't think there's a use case on the kiosk)
  *
+ * NOTE: If PHP is on a different timezone to MySQL there will be problems with the way LastEdited is handled.
+ *
  * @author Mark Guinn <mark@adaircreative.com>
  * @date 8.15.11
  * @package SapphireSync
@@ -22,7 +24,8 @@
 class SyncController extends Controller {
 	static $url_segment = 'sync';
 	static $allow_jsonp = true;
-	
+	static $allow_crossdomain = true;
+
 	/**
 	 * Handles all contexts
 	 * !TODO - handle more than one model in one request
@@ -30,15 +33,27 @@ class SyncController extends Controller {
 	 * @param SS_HTTPRequest $req
 	 * @return SS_HTTPResponse
 	 */
-	public function index($req) {
-		$model	= $req->requestVar('model');
+	public function index(SS_HTTPRequest $req) {
+        $model	= $req->requestVar('model');
 		if (!$model) return $this->fail(400);
-		
+
+		// this just makes the crossdomain ajax stuff simpler and
+		// keeps anything weird from happening there.
+		if (self::$allow_crossdomain && $_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+//			$response = $this->getResponse();
+//			$response->addHeader("Access-Control-Allow-Origin", "*");
+//			$response->addHeader("Access-Control-Allow-Headers", "X-Requested-With");
+//			return $response;
+			header("Access-Control-Allow-Origin: *");
+			header("Access-Control-Allow-Headers: X-Requested-With");
+			exit;
+		}
+
 		// find the configuration
 		$context = SyncContext::current();
 		if (!$context) return $this->fail(400);
 		$cfg = $context->getConfig($model);
-		
+
 		// is syncing this model allowed?
 		if (!$cfg 
 			|| !is_array($cfg) 
@@ -50,22 +65,23 @@ class SyncController extends Controller {
 			? explode(',', $cfg['fields']) 
 			: array_keys(singleton($model)->db());
 		if (count($fields) == 0) return $this->fail(403, 'Access denied');
-		
+
 		// do we need to swap out for a parent table or anything?
 		if (isset($cfg['model'])) $model = $cfg['model'];
 		
 		// build up the rest of the config with defaults
 		if (!isset($cfg['filter'])) $cfg['filter'] = '';
 		if (!isset($cfg['join'])) $cfg['join'] = '';
+		if (!isset($cfg['sort'])) $cfg['sort'] = '';
+		if (!isset($cfg['limit'])) $cfg['limit'] = '';
 		
-		// check authentication
+       // check authentication
 		if (!$context->checkAuth($req->requestVars())) return $this->fail(403, 'Incorrect or invalid authentication');
-		
+
 		// fill in any blanks in the filters based on the request input
 		$replacements = $context->getFilterVariables($req->requestVars());
 		$cfg['filter'] = str_replace(array_keys($replacements), array_values($replacements), $cfg['filter']);
-		//Debug::log("replacing:".print_r($replacements,true).print_r($cfg,true));
-		
+
 		// input arrays
 		$insert	= $req->requestVar('insert')	? json_decode($req->requestVar('insert'), true)	: array();
 		$check	= $req->requestVar('check')		? json_decode($req->requestVar('check'), true)	: array();
@@ -81,27 +97,31 @@ class SyncController extends Controller {
 		// NOTE: if update is set we assume this is the second request (#3 above)
 		if (count($update) == 0) {
 			if ($cfg['type'] == SYNC_DOWN || $cfg['type'] == SYNC_FULL) {
-				$do = singleton($model);
-				//$query = new SQLQuery('ID, unix_timestamp(LastEdited) as TS', $do->baseTable(), "`ClassName` = '" . Convert::raw2sql($model) . "'");
-				$query = $do->extendedSQL($cfg['filter'], '', '', $cfg['join'])
-							->select("`{$do->baseTable()}`.`ID`, unix_timestamp(`{$do->baseTable()}`.`LastEdited`) as `TS`");
-				$result = $query->execute();
+				$list = DataObject::get($model);
+				if ($cfg['filter']) $list = $list->filter($cfg['filter']);
+				if ($cfg['sort']) $list = $list->sort($cfg['sort']);
+				if ($cfg['limit']) $list = $list->limit($cfg['limit']);
+				//, $cfg['join']);
+
+				//$map = $list->map('ID', 'LastEdited');
 				$map = array();
-				foreach ($result as $row){
-					$map[ $row['ID'] ] = $row['TS'];
+				$objMap = array();
+				foreach ($list as $rec) {
+					$map[$rec->ID] = strtotime($rec->LastEdited);
+					$objMap[$rec->ID] = $rec;
 				}
-				
+
 				// take out the id's that are up-to-date form the map
 				// also add any inserts and deletes at this point
 				foreach ($check as $rec) {
-					if (isset($map[ $rec['ID'] ])) {
-						$serverTS = $map[ $rec['ID'] ];
+					if (isset($map[$rec['ID']])) {
+						$serverTS = $map[$rec['ID']];
 						$clientTS = max($rec['TS'], 0);
-		
+
 						if ($serverTS > $clientTS) {
 							// the server is newer than the client
 							// mark it to be sent back as a clientUpdate
-							$clientUpdate[] = $rec['ID'];
+							$clientUpdate[] = self::to_array($objMap[$rec['ID']], $fields);
 						} elseif ($clientTS > $serverTS) {
 							// the version on the client is newer than the server
 							// add it to the clientSend list (i.e. request the data back from the client)
@@ -110,56 +130,53 @@ class SyncController extends Controller {
 							// the versions are the same, leave well enough alone
 						}
 	
-						// $map is now our insert list, so we remove this id from it
-						unset($map[ $rec['ID'] ]);
+						// $objMap is now our insert list, so we remove this id from it
+						unset($objMap[ $rec['ID'] ]);
 					} else {
 						// if it's present on the client WITH an ID but not present
 						// on the server, it means we've deleted it and need to notify
 						// the client
-						$clientDelete[] = $rec['ID'];			
+						$clientDelete[] = $rec['ID'];
 					}
 				}
 				
 				// anything left on the $map right now needs to be inserted
-				if (count($map) > 0) {
-					$set = DataObject::get($model, '"' . $do->baseTable() . '"."ID" in (' . implode(',', array_keys($map)) . ')');
-					foreach ($set as $obj) {
-						$clientInsert[] = $this->listFields($obj, $fields);
-					}
-				}
-	
-				// anything in the clientUpdate list right now need to be fleshed out to full records
-				if (count($clientUpdate) > 0) {
-					$set = DataObject::get($model, '"' . $do->baseTable() . '"."ID" in (' . implode(',', $clientUpdate) . ')');
-					foreach ($set as $obj) {
-						$clientUpdate[] = $this->listFields($obj, $fields);
+				if (count($objMap) > 0) {
+					foreach($objMap as $id => $obj) {
+						$clientInsert[] = self::to_array($obj, $fields);
 					}
 				}
 			}
-			
+	
 			// insert any new records
-			// !todo: make sure only the allowed fields can be changed				
 			if ($cfg['type'] == SYNC_FULL || $cfg['type'] == SYNC_UP) {
 				foreach ($insert as $rec) {
 					unset($rec['ID']);
 					unset($rec['LocalID']);
 					$obj = new $model();
-					$obj->castedUpdate($rec);
+					$obj->castedUpdate(self::filter_fields($rec, $fields));
 					$obj->write();
 					// send the object back so it gets an id, etc
-					$clientInsert[] = $this->listFields($obj, $fields);
+					if ($cfg['type'] == SYNC_FULL) $clientInsert[] = self::to_array($obj, $fields);
 				}
+			}
+
+			// NOTE: for SYNC_UP, if there do happen to be any records left
+			// on the client, we want to tell it to delete them. that probably
+			// means the model has changed from sync_full to sync_up OR
+			// there was a bug at some point. Best to clean up the mess.
+			if ($cfg['type'] == SYNC_UP && count($check) > 0) {
+				foreach ($check as $rec) $clientDelete[] = $rec['ID'];
 			}
 		} else {
 			if ($cfg['type'] == SYNC_FULL || $cfg['type'] == SYNC_UP) {
 				// update records
-				// !todo: make sure only the allowed fields can be changed				
 				foreach ($update as $rec) {
 					$obj = DataObject::get_by_id($model, $rec['ID']);
 					unset($rec['ID']);
 					unset($rec['LocalID']);
 					unset($rec['ClassName']);
-					$obj->castedUpdate($rec);
+					$obj->castedUpdate(self::filter_fields($rec, $fields));
 					$obj->write();
 								
 				}
@@ -224,8 +241,8 @@ class SyncController extends Controller {
 	 * record. Optionally gives you the ability to limit which fields are returned
 	 * and/or use dot notation or rename fields.
 	 *
-	 * @Example:
-	 * $this->listFields($obj,'Name as name','mPlan.ID as id','mPlan.Owner as entity.Name as name');
+	 * Example:
+	 * self::to_array($obj,'Name as name','mPlan.ID as id','mPlan.Owner as entity.Name as name');
 	 * Will return:
 	 * array(
 	 * 		'name'=>'Some Question',
@@ -236,8 +253,14 @@ class SyncController extends Controller {
 	 * 			)
 	 * 		)
 	 * };
+	 *
+	 * TODO clean up the ugly on this code
+	 * 
+	 * @param DataObject $obj
+	 * @param array $fieldList [optional] - by default will return all fields
+	 * @return array
 	 */
-	protected function listFields($obj, $fieldList=array()) {
+	public static function to_array($obj, $fieldList=array()) {
 		if (count($fieldList)) {
 			$fields = array();
 			foreach ($fieldList as $fname) {
@@ -252,7 +275,7 @@ class SyncController extends Controller {
 					if (count($asExplode) == 2) {
 						list($key,$name) = $asExplode;
 					}
-					$recurseFields = ($obj->$IDfield || method_exists($obj,$key)) ? $this->listFields($obj->$key(),array($fName)) : null;
+					$recurseFields = ($obj->$IDfield || method_exists($obj,$key)) ? self::to_array($obj->$key(),array($fName)) : null;
 					if (isset($fields[$name])) {
 						if (is_array($fields[$name])) {
 							if (count($recurseFields) === 1 && is_string(key($recurseFields)) && !isset($fields[$name][key($recurseFields)])) {
@@ -276,18 +299,51 @@ class SyncController extends Controller {
 					}
 					$IDfield = $fname.'ID';
 					if (!$obj->$fname && $obj->$IDfield) {
-						$fields[$key] = $this->listFields($obj->$fname()); // since $obj is a dataobject/viewabledata this covers methods too
+						$fields[$key] = self::to_array($obj->$fname()); // since $obj is a dataobject/viewabledata this covers methods too
 					} else {
 						$fields[$key] = $obj->$fname; // since $obj is a dataobject/viewabledata this covers methods too
 					}
 				}
 			}
 		} else {
-			$fields = $obj->getAllFields();
+			$fields = $obj->toMap();
 		}
-
+		
+		// convert date fields to timestamps, arrays to comma-lists, and objects to json
+		foreach ($fields as $k => $v) {
+			if (is_object($v)) {
+				$fields[$k] = json_encode($v);
+			} elseif (is_array($v)) {
+				// assoc-array becomes json
+				if (array_keys($v) !== range(0, count($v) - 1)) {
+					$fields[$k] = json_encode($v);
+				} else {
+					// indexed array
+					$fields[$k] = implode(',', $v);
+				}
+			} elseif (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $v)) {
+				$fields[$k] = date('c', strtotime($v));
+			}
+		}
+		
 		return $fields;
 	}
 
+
+	/**
+	 * Takes an assoc array of data, removes any keys that are not on the fields
+	 * list and returns the same array.
+	 *
+	 * @static
+	 * @param array $data
+	 * @param array $fields
+	 * @return array
+	 */
+	public static function filter_fields(array $data, array $fields) {
+		foreach ($data as $k => $v) {
+			if (!in_array($k, $fields)) unset($data[$k]);
+		}
+		return $data;
+	}
 
 }

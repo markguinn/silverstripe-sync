@@ -6,7 +6,7 @@
  *
  * @author Mark Guinn <mark@adaircreative.com>
  * @date 8.15.11
- * @package sync
+ * @package SapphireSync
  */
 class SyncContext
 {
@@ -27,6 +27,7 @@ class SyncContext
 	 * @param string $id
 	 * @param array|SyncContext $data
 	 * @return SyncContext
+	 * @throws Exception
 	 */
 	public static function add($id, $data=null) {
 		// instantiate many from a single array if needed
@@ -56,7 +57,8 @@ class SyncContext
 	
 	
 	/**
-	 * Returns an instace from an id
+	 * Returns an instance from an id
+	 * @param string $id
 	 * @return SyncContext
 	 */
 	public static function get($id) {
@@ -97,7 +99,7 @@ class SyncContext
 	
 	/**
 	 * Creates a new syncing context
-	 * @param array $data
+	 * @param array $modelConfig
 	 */
 	public function __construct(array $modelConfig = array()) {
 		$this->modelConfig = $modelConfig;
@@ -112,7 +114,7 @@ class SyncContext
 	 * @return array
 	 */
 	public function getConfig($model) {
-		$default = Object::get_static($model, 'sync');
+		$default = class_exists($model) ? Object::get_static($model, 'sync') : null;
 		if (!is_array($default)) $default = array();
 		
 		$override = isset($this->modelConfig[$model]) ? $this->modelConfig[$model] : array();

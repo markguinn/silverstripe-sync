@@ -6,7 +6,7 @@
  *
  * @author Mark Guinn <mark@adaircreative.com>
  * @date 8.15.11
- * @package SapphireSync
+ * @package silverstripe-sync
  */
 class SyncContext
 {

@@ -6,7 +6,7 @@
  *
  * @author Mark Guinn <mark@adaircreative.com>
  * @date 11.03.2011
- * @package SapphireSync
+ * @package silverstripe-sync
  */
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Headers: X-Requested-With');

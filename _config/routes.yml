@@ -1,0 +1,7 @@
+---
+Name: sync_routes
+After: framework/routes#coreroutes
+---
+Director:
+    rules:
+        'sync/$SyncContext': SyncController

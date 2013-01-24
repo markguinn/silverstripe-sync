@@ -1,11 +1,13 @@
-SapphireSync Module
-v0.1
+Silverstripe Sync
+=================
+v0.2
 
 This module is in a very very early stage. It's just been refactored
 from a project under active development and so lacks some functionality
 that would be generally useful but isn't required for our one project.
 Hopefully it can grow from here.
 
+*The following is old documentation. I need to update this. Sorry.*
 
 Server usage:
 

@@ -49,6 +49,8 @@ class SyncController extends Controller {
 			exit;
 		}
 
+		//Debug::log(print_r($req->requestVars(),true));
+
 		// find the configuration
 		$context = SyncContext::current();
 		if (!$context) return $this->fail(400);
@@ -70,13 +72,26 @@ class SyncController extends Controller {
 		if (isset($cfg['model'])) $model = $cfg['model'];
 		
 		// build up the rest of the config with defaults
-		if (!isset($cfg['filter'])) $cfg['filter'] = '';
+		if (!isset($cfg['filter'])) $cfg['filter'] = array();
 		if (!isset($cfg['join'])) $cfg['join'] = '';
 		if (!isset($cfg['sort'])) $cfg['sort'] = '';
 		if (!isset($cfg['limit'])) $cfg['limit'] = '';
 		
-       // check authentication
+		// check authentication
 		if (!$context->checkAuth($req->requestVars())) return $this->fail(403, 'Incorrect or invalid authentication');
+
+		// there are a few magic values that can be used in the filters:
+		// :future
+		// :last X days
+		foreach ($cfg['filter'] as $field => $filter) {
+			if ($filter == ':future') {
+				unset($cfg['filter'][$field]);
+				$cfg['filter'][$field . ':GreaterThan'] = date('Y-m-d H:i:s');
+			} elseif (preg_match('/^:last (\d+) days?$/', $filter, $matches)) {
+				unset($cfg['filter'][$field]);
+				$cfg['filter'][$field . ':GreaterThan'] = date('Y-m-d H:i:s', time() - ($matches[1] * 24 * 60 * 60));
+			}
+		}
 
 		// fill in any blanks in the filters based on the request input
 		$replacements = $context->getFilterVariables($req->requestVars());
@@ -86,7 +101,7 @@ class SyncController extends Controller {
 		$insert	= $req->requestVar('insert')	? json_decode($req->requestVar('insert'), true)	: array();
 		$check	= $req->requestVar('check')		? json_decode($req->requestVar('check'), true)	: array();
 		$update	= $req->requestVar('update')	? json_decode($req->requestVar('update'), true)	: array();		
-		
+
 		// output arrays
 		$clientSend = array();
 		$clientInsert = array();
@@ -113,30 +128,32 @@ class SyncController extends Controller {
 
 				// take out the id's that are up-to-date form the map
 				// also add any inserts and deletes at this point
-				foreach ($check as $rec) {
-					if (isset($map[$rec['ID']])) {
-						$serverTS = $map[$rec['ID']];
-						$clientTS = max($rec['TS'], 0);
+				if (is_array($check)) {
+					foreach ($check as $rec) {
+						if (isset($map[$rec['ID']])) {
+							$serverTS = $map[$rec['ID']];
+							$clientTS = max($rec['TS'], 0);
 
-						if ($serverTS > $clientTS) {
-							// the server is newer than the client
-							// mark it to be sent back as a clientUpdate
-							$clientUpdate[] = self::to_array($objMap[$rec['ID']], $fields);
-						} elseif ($clientTS > $serverTS) {
-							// the version on the client is newer than the server
-							// add it to the clientSend list (i.e. request the data back from the client)
-							$clientSend[] = $rec['ID'];
+							if ($serverTS > $clientTS) {
+								// the server is newer than the client
+								// mark it to be sent back as a clientUpdate
+								$clientUpdate[] = self::to_array($objMap[$rec['ID']], $fields);
+							} elseif ($clientTS > $serverTS) {
+								// the version on the client is newer than the server
+								// add it to the clientSend list (i.e. request the data back from the client)
+								$clientSend[] = $rec['ID'];
+							} else {
+								// the versions are the same, leave well enough alone
+							}
+
+							// $objMap is now our insert list, so we remove this id from it
+							unset($objMap[ $rec['ID'] ]);
 						} else {
-							// the versions are the same, leave well enough alone
+							// if it's present on the client WITH an ID but not present
+							// on the server, it means we've deleted it and need to notify
+							// the client
+							$clientDelete[] = $rec['ID'];
 						}
-	
-						// $objMap is now our insert list, so we remove this id from it
-						unset($objMap[ $rec['ID'] ]);
-					} else {
-						// if it's present on the client WITH an ID but not present
-						// on the server, it means we've deleted it and need to notify
-						// the client
-						$clientDelete[] = $rec['ID'];
 					}
 				}
 				
@@ -149,7 +166,7 @@ class SyncController extends Controller {
 			}
 	
 			// insert any new records
-			if ($cfg['type'] == SYNC_FULL || $cfg['type'] == SYNC_UP) {
+			if (($cfg['type'] == SYNC_FULL || $cfg['type'] == SYNC_UP) && is_array($insert)) {
 				foreach ($insert as $rec) {
 					unset($rec['ID']);
 					unset($rec['LocalID']);
@@ -165,11 +182,11 @@ class SyncController extends Controller {
 			// on the client, we want to tell it to delete them. that probably
 			// means the model has changed from sync_full to sync_up OR
 			// there was a bug at some point. Best to clean up the mess.
-			if ($cfg['type'] == SYNC_UP && count($check) > 0) {
+			if ($cfg['type'] == SYNC_UP && is_array($check) && count($check) > 0) {
 				foreach ($check as $rec) $clientDelete[] = $rec['ID'];
 			}
 		} else {
-			if ($cfg['type'] == SYNC_FULL || $cfg['type'] == SYNC_UP) {
+			if (($cfg['type'] == SYNC_FULL || $cfg['type'] == SYNC_UP) && is_array($update)) {
 				// update records
 				foreach ($update as $rec) {
 					$obj = DataObject::get_by_id($model, $rec['ID']);

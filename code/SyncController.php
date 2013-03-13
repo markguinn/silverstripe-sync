@@ -32,6 +32,7 @@ class SyncController extends Controller {
 	 *
 	 * @param SS_HTTPRequest $req
 	 * @return SS_HTTPResponse
+     * @throws Exception
 	 */
 	public function index(SS_HTTPRequest $req) {
         $model	= $req->requestVar('model');
@@ -73,7 +74,7 @@ class SyncController extends Controller {
 		
 		// build up the rest of the config with defaults
 		if (!isset($cfg['filter'])) $cfg['filter'] = array();
-		if (!isset($cfg['join'])) $cfg['join'] = '';
+		if (!isset($cfg['join'])) $cfg['join'] = array();
 		if (!isset($cfg['sort'])) $cfg['sort'] = '';
 		if (!isset($cfg['limit'])) $cfg['limit'] = '';
 		
@@ -83,15 +84,7 @@ class SyncController extends Controller {
 		// there are a few magic values that can be used in the filters:
 		// :future
 		// :last X days
-		foreach ($cfg['filter'] as $field => $filter) {
-			if ($filter == ':future') {
-				unset($cfg['filter'][$field]);
-				$cfg['filter'][$field . ':GreaterThan'] = date('Y-m-d H:i:s');
-			} elseif (preg_match('/^:last (\d+) days?$/', $filter, $matches)) {
-				unset($cfg['filter'][$field]);
-				$cfg['filter'][$field . ':GreaterThan'] = date('Y-m-d H:i:s', time() - ($matches[1] * 24 * 60 * 60));
-			}
-		}
+        $cfg['filter'] = SyncFilterHelper::process($cfg['filter']);
 
 		// fill in any blanks in the filters based on the request input
 		$replacements = $context->getFilterVariables($req->requestVars());
@@ -116,7 +109,13 @@ class SyncController extends Controller {
 				if ($cfg['filter']) $list = $list->filter($cfg['filter']);
 				if ($cfg['sort']) $list = $list->sort($cfg['sort']);
 				if ($cfg['limit']) $list = $list->limit($cfg['limit']);
-				//, $cfg['join']);
+				if ($cfg['join'] && count($cfg['join']) > 0) {
+                    if (!is_array($cfg['join'])) throw new Exception('Invalid join syntax');
+                    $fn = count($cfg['join']) > 2
+                            ? $cfg['join'] . 'Join'
+                            : 'innerJoin';
+                    $list = $list->$fn($cfg['join'][0], $cfg['join'][1]);
+                }
 
 				//$map = $list->map('ID', 'LastEdited');
 				$map = array();

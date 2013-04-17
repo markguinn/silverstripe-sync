@@ -114,7 +114,14 @@ class SyncContext
 	 * @return array
 	 */
 	public function getConfig($model) {
-		$default = class_exists($model) ? Object::get_static($model, 'sync') : null;
+		$default = null;
+		if (class_exists($model)) {
+			if (class_exists('Config')) {
+				$default = Config::inst()->get($model, 'sync');
+			} else {
+				$default = Object::get_static($model, 'sync');
+			}
+		}
 		if (!is_array($default)) $default = array();
 		
 		$override = isset($this->modelConfig[$model]) ? $this->modelConfig[$model] : array();

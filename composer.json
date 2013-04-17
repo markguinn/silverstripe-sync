@@ -2,14 +2,18 @@
 	"name": "markguinn/silverstripe-sync",
 	"type": "silverstripe-module",
 	"description": "Two-way configurable sync for linking Silverstripe to mobile apps (or potentially other data sources).",
-	"license": "BSD-3-Clause",
+	"license": "MIT",
 	"keywords": ["silverstripe", "mobile", "sync"],
 	"authors": [
 		{
 			"name": "Mark Guinn",
+			"email": "mark@adaircreative.com",
 			"homepage": "https://github.com/markguinn"
 		}
 	],
+	"extra": {
+		"installer-name": "sync"
+	},
 	"require": {
 		"silverstripe/framework": "3.*"
 	}

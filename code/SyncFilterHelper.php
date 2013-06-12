@@ -21,9 +21,9 @@ class SyncFilterHelper
         $out = array();
 
         foreach ($filters as $field => $filter) {
-            if ($filter == ':future') {
+            if (is_string($filter) && $filter == ':future') {
                 $out[$field . ':GreaterThan'] = date('Y-m-d H:i:s');
-            } elseif (preg_match('/^:last (\d+) days?$/', $filter, $matches)) {
+            } elseif (is_string($filter) && preg_match('/^:last (\d+) days?$/', $filter, $matches)) {
                 $out[$field . ':GreaterThan'] = date('Y-m-d H:i:s', time() - ($matches[1] * 24 * 60 * 60));
             } else {
                 // pass everything else through

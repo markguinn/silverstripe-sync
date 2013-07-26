@@ -17,7 +17,7 @@ class SyncFilterHelper
      * @param array $filters
      * @return array
      */
-    public static function process(array $filters) {
+    public static function process_filters(array $filters) {
         $out = array();
 
         foreach ($filters as $field => $filter) {
@@ -33,4 +33,46 @@ class SyncFilterHelper
 
         return $out;
     }
+
+
+	/**
+	 * @param array $field_names
+	 * @return array - key=real field name, value=false|callable
+	 */
+	public static function process_fields(array $field_names) {
+		$out = array();
+
+		foreach ($field_names as $name) {
+			if (strpos($name, ':') !== false) {
+				$parts = explode(':', $name);
+				$out[$parts[0]] = array('SyncFilterHelper', $parts[1]);
+			} else {
+				$out[$name] = false;
+			}
+		}
+
+		return $out;
+	}
+
+
+	// Filter functions /////////////////////////////////////////////////////////
+
+
+	/**
+	 * @param $s
+	 * @return string
+	 */
+	public static function strip_html($s) {
+		return Convert::html2raw($s);
+	}
+
+
+	/**
+	 * @param $s
+	 * @return string
+	 */
+	public static function quote_html($s) {
+		return htmlentities($s);
+	}
+
 }

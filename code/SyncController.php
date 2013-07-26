@@ -68,6 +68,10 @@ class SyncController extends Controller {
 			? explode(',', $cfg['fields']) 
 			: array_keys(singleton($model)->db());
 		if (count($fields) == 0) return $this->fail(403, 'Access denied');
+		$fieldFilters = SyncFilterHelper::process_fields($fields);
+		$fieldFilters['ID'] = false;
+		$fieldFilters['LastEdited'] = false;
+		$fields = array_keys($fieldFilters);
 
 		// do we need to swap out for a parent table or anything?
 		if (isset($cfg['model'])) $model = $cfg['model'];
@@ -84,7 +88,7 @@ class SyncController extends Controller {
 		// there are a few magic values that can be used in the filters:
 		// :future
 		// :last X days
-        $cfg['filter'] = SyncFilterHelper::process($cfg['filter']);
+        $cfg['filter'] = SyncFilterHelper::process_filters($cfg['filter']);
 
 		// fill in any blanks in the filters based on the request input
 		$replacements = $context->getFilterVariables($req->requestVars());
@@ -136,7 +140,7 @@ class SyncController extends Controller {
 							if ($serverTS > $clientTS) {
 								// the server is newer than the client
 								// mark it to be sent back as a clientUpdate
-								$clientUpdate[] = self::to_array($objMap[$rec['ID']], $fields);
+								$clientUpdate[] = self::to_array($objMap[$rec['ID']], $fields, $fieldFilters);
 							} elseif ($clientTS > $serverTS) {
 								// the version on the client is newer than the server
 								// add it to the clientSend list (i.e. request the data back from the client)
@@ -159,7 +163,7 @@ class SyncController extends Controller {
 				// anything left on the $map right now needs to be inserted
 				if (count($objMap) > 0) {
 					foreach($objMap as $id => $obj) {
-						$clientInsert[] = self::to_array($obj, $fields);
+						$clientInsert[] = self::to_array($obj, $fields, $fieldFilters);
 					}
 				}
 			}
@@ -173,7 +177,7 @@ class SyncController extends Controller {
 					$obj->castedUpdate(self::filter_fields($rec, $fields));
 					$obj->write();
 					// send the object back so it gets an id, etc
-					if ($cfg['type'] == SYNC_FULL) $clientInsert[] = self::to_array($obj, $fields);
+					if ($cfg['type'] == SYNC_FULL) $clientInsert[] = self::to_array($obj, $fields, $fieldFilters);
 				}
 			}
 
@@ -276,7 +280,7 @@ class SyncController extends Controller {
 	 * @param array $fieldList [optional] - by default will return all fields
 	 * @return array
 	 */
-	public static function to_array($obj, $fieldList=array()) {
+	public static function to_array($obj, $fieldList=array(), $filters=array()) {
 		if (count($fieldList)) {
 			$fields = array();
 			foreach ($fieldList as $fname) {
@@ -339,6 +343,12 @@ class SyncController extends Controller {
 				}
 			} elseif (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $v)) {
 				$fields[$k] = date('c', strtotime($v));
+			}
+
+			// apply other filters as specified in the field list
+			if (isset($filters[$k]) && $filters[$k] !== false) {
+				//Debug::dump(array($k, $filters[$k]))
+				$fields[$k] = call_user_func($filters[$k], $v);
 			}
 		}
 		

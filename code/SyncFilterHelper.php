@@ -75,4 +75,13 @@ class SyncFilterHelper
 		return htmlentities($s);
 	}
 
+
+	/**
+	 * @param $s
+	 * @return string
+	 */
+	public static function fix_whitespace($s) {
+		return trim(preg_replace('/\s+/', ' ', $s));
+	}
+
 }

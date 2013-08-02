@@ -66,6 +66,13 @@ class SyncFilterHelper
 		return Convert::html2raw($s);
 	}
 
+	/**
+	 * @param $s
+	 * @return string
+	 */
+	public static function strip_html_and_whitespace($s) {
+		return self::fix_whitespace(self::strip_html($s));
+	}
 
 	/**
 	 * @param $s
@@ -74,7 +81,6 @@ class SyncFilterHelper
 	public static function quote_html($s) {
 		return htmlentities($s);
 	}
-
 
 	/**
 	 * @param $s

@@ -25,6 +25,7 @@ class SyncController extends Controller {
 	static $url_segment = 'sync';
 	static $allow_jsonp = true;
 	static $allow_crossdomain = true;
+	static $date_format = 'c';
 
 	/**
 	 * Handles all contexts
@@ -37,6 +38,11 @@ class SyncController extends Controller {
 	public function index(SS_HTTPRequest $req) {
         $model	= $req->requestVar('model');
 		if (!$model) return $this->fail(400);
+
+		// allow different date formats for different clients (eg. android)
+		if ($df = $req->requestVar('date_format')) {
+			self::$date_format = $df;
+		}
 
 		// this just makes the crossdomain ajax stuff simpler and
 		// keeps anything weird from happening there.
@@ -342,7 +348,7 @@ class SyncController extends Controller {
 					$fields[$k] = implode(',', $v);
 				}
 			} elseif (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $v)) {
-				$fields[$k] = date('c', strtotime($v));
+				$fields[$k] = date(self::$date_format, strtotime($v));
 			}
 
 			// apply other filters as specified in the field list

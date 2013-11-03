@@ -56,6 +56,9 @@ public class MyAppDbContract {
 }
 ```
 
+NOTE: Your database should have an "ID" field (in addition to the usual _id primary key)
+and a "LastEdited" field. *This adapter assumes your sqlite dates are unix timestamps.*
+
 
 
 3. Create a config class
@@ -90,6 +93,7 @@ public class MyApplication extends Application {
 
 }
 ```
+
 
 
 4. Set up the stub authenticator and sync adapter in xml

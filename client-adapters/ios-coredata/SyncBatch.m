@@ -97,7 +97,7 @@
 
 - (SyncRequest*)processQueue
 {
-    NSLog(@"BATCH: Processing queue. isprocessing=%@ length=%d", isProcessing?@"YES":@"NO", [_queue count]);
+    //NSLog(@"BATCH: Processing queue. isprocessing=%@ length=%d", isProcessing?@"YES":@"NO", [_queue count]);
     if (self.isProcessing != NO) return Nil;
 
     // update the indicator if present
@@ -110,7 +110,7 @@
     if ([_queue count] == 0)
     {
         // send messages it to the client and delegate (if needed)
-        if ([_errors count] > 0)
+        if ([_errors count] == 0)
         {
             if ([self.client respondsToSelector:@selector(syncBatchDidSucceed:)]) 
                 [self.client syncBatchDidSucceed:self];
@@ -164,7 +164,7 @@
 
 - (void)syncRequestDidFinish:(id)sender withError:(NSError*)error;
 {
-    NSLog(@"batch:request finished");
+    //NSLog(@"batch:request finished");
     self.isProcessing = NO;
 
     // send it to the client and delegate (if needed)
@@ -181,7 +181,7 @@
 
 - (void)syncRequestDidSucceed:(id)sender
 {
-    NSLog(@"batch:request succeeded");
+    //NSLog(@"batch:request succeeded");
 
     // send it to the client and delegate (if needed)
     if ([self.client respondsToSelector:@selector(syncRequestDidSucceed:)]) 
@@ -195,7 +195,7 @@
 - (void)syncRequestDidFail:(id)sender 
                  withError:(NSError*)error
 {
-    NSLog(@"batch:request failed");
+    NSLog(@"SYNC BATCH: request failed %@", error);
     
     // remember the error
     SyncRequest* req = (SyncRequest*)sender;

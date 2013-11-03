@@ -86,7 +86,8 @@
 
 
 - (void)syncBatchDidFinish:(id)sender withErrors:(NSDictionary*)errors;
-
+- (void)syncBatchDidSucceed:(id)sender;
+- (void)syncBatchDidFail:(id)sender withErrors:(NSDictionary*)errors;
 
 @end
 

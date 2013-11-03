@@ -90,7 +90,7 @@
 
 - (SyncBatch*)processQueue
 {
-    NSLog(@"Processing queue. isprocessing=%@ length=%d", isProcessing?@"YES":@"NO", [_queue count]);
+    //NSLog(@"SYNC: Processing queue. isprocessing=%@ length=%d", isProcessing?@"YES":@"NO", [_queue count]);
     if (self.isProcessing != NO) return NULL;
     if ([_queue count] == 0) return NULL;
     
@@ -228,9 +228,26 @@
 
 - (void)syncBatchDidFinish:(id)sender withErrors:(NSDictionary*)errors
 {
-    NSLog(@"Batch finished.");
+    NSLog(@"SYNC: Batch finished.");
     self.isProcessing = NO;
+    
+    if (self.delegate && [self.delegate respondsToSelector:@selector(syncBatchDidFinish:withErrors:)])
+        [self.delegate syncBatchDidFinish:self withErrors:errors];
+    
     [self processQueue];
+}
+
+- (void)syncBatchDidSucceed:(id)sender
+{
+   if (self.delegate && [self.delegate respondsToSelector:@selector(syncBatchDidSucceed:)])
+       [self.delegate syncBatchDidSucceed:self];
+}
+
+- (void)syncBatchDidFail:(id)sender withErrors:(NSDictionary*)errors
+{
+    if (self.delegate && [self.delegate respondsToSelector:@selector(syncBatchDidFail:withErrors:)])
+        [self.delegate syncBatchDidFail:self withErrors:errors];
+
 }
 
 

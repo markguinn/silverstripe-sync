@@ -13,7 +13,7 @@
  *	],
  * It's not necessary for LocalID to be specifically called that,
  * I just renamed it to avoid confusion. I haven't found a way for
- * Sencha to use the same ID as Sapphire. It keeps wanting to override
+ * Sencha to use the same ID as Silverstripe. It keeps wanting to override
  * plus, you've got to find a way for autonumber fields to work right.
  *
  * The model can define the following functions:
@@ -25,13 +25,13 @@
  *
  * @author Mark Guinn <mark@adaircreative.com>
  * @date 7.23.12
- * @package SapphireSync
+ * @package SilverstripeSync
  * @subpackage adapters
  */
 
-Ext.define('SapphireSync.adapter.Sencha2', {
+Ext.define('SilverstripeSync.adapter.Sencha2', {
 	extend:				'Ext.Evented',
-//	requires:			['SapphireSync.adapter.Sencha2.Batch'],
+//	requires:			['SilverstripeSync.adapter.Sencha2.Batch'],
 	
 	// !Configuration /////////////////////////////////////////
 	config:{
@@ -168,7 +168,7 @@ Ext.define('SapphireSync.adapter.Sencha2', {
 		config.syncAdapter = self;
 		
 		// create the actual batch object and add it to the queue
-		var batch = Ext.create('SapphireSync.adapter.Sencha2.Batch', config);
+		var batch = Ext.create('SilverstripeSync.adapter.Sencha2.Batch', config);
 		batch.on('error', this.setDirtyFlag, this);
 		this.queue.push(batch);
 		this.processQueue();
@@ -532,12 +532,12 @@ Ext.define('SapphireSync.adapter.Sencha2', {
  *
  * @author Mark Guinn <mark@adaircreative.com>
  * @date 7.23.12
- * @package SapphireSync
+ * @package SilverstripeSync
  * @subpackage Sencha2
  */
-Ext.define('SapphireSync.adapter.Sencha2.Batch', {
+Ext.define('SilverstripeSync.adapter.Sencha2.Batch', {
 	extend:				'Ext.Evented',
-//	requires:			['SapphireSync.adapter.Sencha2.Request'],
+//	requires:			['SilverstripeSync.adapter.Sencha2.Request'],
 
 	// !Configuration /////////////////////////////////////////
 	config:{
@@ -678,8 +678,8 @@ Ext.define('SapphireSync.adapter.Sencha2.Batch', {
 		// TODO: set up a fallback to fire if we take too long (>4 minutes)
 /*
 		setTimeout(function(){
-			if (SapphireSync.lastDbSync == null && typeof(SapphireSync.onTimeout)=='function'){
-				SapphireSync.onTimeout();
+			if (SilverstripeSync.lastDbSync == null && typeof(SilverstripeSync.onTimeout)=='function'){
+				SilverstripeSync.onTimeout();
 			}
 		}, this.timeoutMin * 60 * 1000);
 */
@@ -705,7 +705,7 @@ Ext.define('SapphireSync.adapter.Sencha2.Batch', {
 		if (typeof config.auth == 'undefined') config.auth = this.getAuth();
 		if (typeof config.store == 'undefined') config.store = this.getSyncAdapter().getStore(config.model);
 		if (typeof config.fullRefresh == 'undefined') config.fullRefresh = this.getFullRefresh();
-		var req = Ext.create('SapphireSync.adapter.Sencha2.Request', config);
+		var req = Ext.create('SilverstripeSync.adapter.Sencha2.Request', config);
 		this.queue.push(req);
 		if (!dontProcess) this.processQueue();
 		return req;
@@ -787,10 +787,10 @@ Ext.define('SapphireSync.adapter.Sencha2.Batch', {
  *
  * @author Mark Guinn <mark@adaircreative.com>
  * @date 7.23.12
- * @package SapphireSync
+ * @package SilverstripeSync
  * @subpackage Sencha2
  */
-Ext.define('SapphireSync.adapter.Sencha2.Request', {
+Ext.define('SilverstripeSync.adapter.Sencha2.Request', {
 	extend:				'Ext.Evented',
 
 	// !Configuration /////////////////////////////////////////

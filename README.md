@@ -1,48 +1,58 @@
 Silverstripe Sync
 =================
-v0.2
 
-This module is in a very very early stage. It's just been refactored
-from a project under active development and so lacks some functionality
-that would be generally useful but isn't required for our one project.
-Hopefully it can grow from here.
+Sync selected models from a silverstripe installation with a client (usually a mobile
+application).
 
-*The following is old documentation. I need to update this. Sorry.*
-
-Server usage:
-
-There are a few statics you can set to configure things like the sync
-API url and set up additional syncing "contexts" with different rules.
-
-The only required setup is that you define a static on the models you
-want to sync with some configuration.
+See docs folder for setup examples.
 
 
+Features
+--------
+- Any DataObject can be synced.
+- Any set of fields, properties, or methods can be sent (not limited to the database).
+- Sync can be bi-directional or one-way either direction.
+- A single silverstripe install can have multiple configurations for syncing, in the case
+  that a single database needs to power several apps or views of the data.
+- Sync is based on LastEdited timestamp
 
 
-Client usage:
+Adapters
+--------
+- Sencha Touch 1.x
+- Sencha Touch 2.x
+- iOS CoreData
+- Android Sync Adapter + Content Provider (usually wrapping a sqlite db)
 
-Make sure sync/javascript/sencha.js is included. This should work for
-both Sencha Touch 1.x and ExtJS 4.
+NOTE: Both the iOS and Android adapters are missing functionality at present. Both do
+downward syncing from the server but are missining the upward and bi-directional modes.
 
-// REQUIRED: before you sync you must tell it which models to sync
-SapphireSync.models = ['Store','Product','User'];
 
-// OPTIONAL: no authentication is done by default, but if you
-// add that to your SyncContext setup on the server side, this
-// would be where you specify additional parameters to get included
-// with each POST request.
-SapphireSync.auth = {
-	user: 'john',
-	password: 'abcdef'
-};
+Developer(s)
+------------
+- Mark Guinn <mark@adaircreative.com>
 
-Then to initiate the sync:
+Contributions welcome by pull request and/or bug report.
+Please follow Silverstripe code standards.
 
-SapphireSync.allModels();
 
-Or:
+License (MIT)
+-------------
+Copyright (c) 2013 Mark Guinn
 
-SapphireSync.allModels(false, function(){
-	// this will be called when sync is complete
-});
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to use,
+copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the
+Software, and to permit persons to whom the Software is furnished to do so, subject
+to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies
+or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
+FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.

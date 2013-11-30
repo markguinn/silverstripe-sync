@@ -27,7 +27,7 @@
 
 - (void)setValuesForLocal:(NSManagedObject*)localRec fromRemote:(NSDictionary*)remoteRec;
 
-- (NSURLConnection*)process;
+- (void)process;
 
 -(void)connection:(NSURLConnection*)connection didReceiveResponse:(NSURLResponse*)response;
 -(void)connection:(NSURLConnection*)connection didReceiveData:(NSData*)data;

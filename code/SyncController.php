@@ -347,7 +347,7 @@ class SyncController extends Controller {
 					// indexed array
 					$fields[$k] = implode(',', $v);
 				}
-			} elseif (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $v)) {
+			} elseif (preg_match('/^\d{4}-\d{2}-\d{2}( \d{2}:\d{2}:\d{2})?$/', $v)) {
 				$fields[$k] = date(self::$date_format, strtotime($v));
 			}
 

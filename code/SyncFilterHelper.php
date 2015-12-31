@@ -17,7 +17,8 @@ class SyncFilterHelper
      * @param array $filters
      * @return array
      */
-    public static function process_filters(array $filters) {
+    public static function process_filters(array $filters)
+    {
         $out = array();
 
         foreach ($filters as $field => $filter) {
@@ -29,65 +30,69 @@ class SyncFilterHelper
                 // pass everything else through
                 $out[$field] = $filter;
             }
-   		}
+        }
 
         return $out;
     }
 
 
-	/**
-	 * @param array $field_names
-	 * @return array - key=real field name, value=false|callable
-	 */
-	public static function process_fields(array $field_names) {
-		$out = array();
+    /**
+     * @param array $field_names
+     * @return array - key=real field name, value=false|callable
+     */
+    public static function process_fields(array $field_names)
+    {
+        $out = array();
 
-		foreach ($field_names as $name) {
-			if (strpos($name, ':') !== false) {
-				$parts = explode(':', $name);
-				$out[$parts[0]] = array('SyncFilterHelper', $parts[1]);
-			} else {
-				$out[$name] = false;
-			}
-		}
+        foreach ($field_names as $name) {
+            if (strpos($name, ':') !== false) {
+                $parts = explode(':', $name);
+                $out[$parts[0]] = array('SyncFilterHelper', $parts[1]);
+            } else {
+                $out[$name] = false;
+            }
+        }
 
-		return $out;
-	}
-
-
-	// Filter functions /////////////////////////////////////////////////////////
+        return $out;
+    }
 
 
-	/**
-	 * @param $s
-	 * @return string
-	 */
-	public static function strip_html($s) {
-		return Convert::html2raw($s);
-	}
+    // Filter functions /////////////////////////////////////////////////////////
 
-	/**
-	 * @param $s
-	 * @return string
-	 */
-	public static function strip_html_and_whitespace($s) {
-		return self::fix_whitespace(self::strip_html($s));
-	}
 
-	/**
-	 * @param $s
-	 * @return string
-	 */
-	public static function quote_html($s) {
-		return htmlentities($s);
-	}
+    /**
+     * @param $s
+     * @return string
+     */
+    public static function strip_html($s)
+    {
+        return Convert::html2raw($s);
+    }
 
-	/**
-	 * @param $s
-	 * @return string
-	 */
-	public static function fix_whitespace($s) {
-		return trim(preg_replace('/\s+/', ' ', $s));
-	}
+    /**
+     * @param $s
+     * @return string
+     */
+    public static function strip_html_and_whitespace($s)
+    {
+        return self::fix_whitespace(self::strip_html($s));
+    }
 
+    /**
+     * @param $s
+     * @return string
+     */
+    public static function quote_html($s)
+    {
+        return htmlentities($s);
+    }
+
+    /**
+     * @param $s
+     * @return string
+     */
+    public static function fix_whitespace($s)
+    {
+        return trim(preg_replace('/\s+/', ' ', $s));
+    }
 }
